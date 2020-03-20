@@ -1,14 +1,15 @@
 package kz.iitu.employeesalary;
 
-import kz.iitu.employeesalary.dao.JdbcTemplateEmployeeDaoImpl;
-import kz.iitu.employeesalary.dao.JdbcTemplateSalaryDaoImpl;
-import kz.iitu.employeesalary.models.Employee;
+import kz.iitu.employeesalary.model.Employee;
+import kz.iitu.employeesalary.model.EmployeeType;
+import kz.iitu.employeesalary.repository.EmployeeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 
 @Component
@@ -18,204 +19,195 @@ public class EmployeeSalary {
 
     Scanner scanner = new Scanner(System.in);
 
-    StringBuilder stringBuilder = new StringBuilder();
+    @Autowired
+    EmployeeRepository employeeRepository;
+
+    Employee employee;
 
     private List<Employee> employees = new ArrayList<>();
-    @Autowired
-    private DataSource dataSource;
-    @Autowired
-    private JdbcTemplateEmployeeDaoImpl employeeDao;
-    @Autowired
-    private JdbcTemplateSalaryDaoImpl salaryDao;
 
     public void createNewEmployee()
     {
-        int id;
         String name, type;
-        double salary = 0;
+        double fixedSalary;
+        double hourRate;
+        int hoursWorked;
+        float commRate;
+        EmployeeType employeeType;
 
-        System.out.println("Enter employee id");
-        id = scanner.nextInt();
         System.out.println("Enter employee name");
-        name = scanner.nextLine();
+        name = scanner.next();
         System.out.println("Enter employee type");
         type = scanner.next();
 
-        employeeDao.createEmployee(id, name, type, salary);
+        if(type.equals("Salaried"))
+        {
+            System.out.println("Enter fixed salary");
+            fixedSalary = scanner.nextDouble();
+            hourRate = 0;
+            hoursWorked = 0;
+            commRate = 0;
+            employeeType = EmployeeType.SALARIED;
+        }
+        else if(type.equals("Hourly"))
+        {
+            System.out.println("Enter hour rate");
+            hourRate = scanner.nextDouble();
+            System.out.println("Enter hours worked");
+            hoursWorked = scanner.nextInt();
+            fixedSalary = 0;
+            commRate = 0;
+            employeeType = EmployeeType.HOURLY;
+        }
+        else if(type.equals("Commission"))
+        {
+            System.out.println("Enter commission rate");
+            commRate = scanner.nextFloat();
+            fixedSalary = 0;
+            hourRate = 0;
+            hoursWorked = 0;
+            employeeType = EmployeeType.COMMISION;
+        }
+        else if(type.equals("Salaried-Commission"))
+        {
+            System.out.println("Enter fixed salary");
+            fixedSalary = scanner.nextDouble();
+            System.out.println("Enter commission rate");
+            commRate = scanner.nextFloat();
+            hourRate = 0;
+            hoursWorked = 0;
+            employeeType = EmployeeType.SALARIED_COMMISION;
+        }
+        else
+        {
+            fixedSalary = 0;
+            hourRate = 0;
+            hoursWorked = 0;
+            commRate = 0;
+            employeeType = EmployeeType.SALARIED;
+        }
+        employee = new Employee(name, fixedSalary, hourRate, hoursWorked, commRate, employeeType);
+        employeeRepository.save(employee);
     }
 
     public void getEmployeeByID()
     {
+        long id;
         System.out.println("Enter employee id");
-        int id = scanner.nextInt();
-        employeeDao.getEmployeeById(id);
+        id = scanner.nextLong();
+        employee = employeeRepository.findById(id).get();
+        System.out.println(employee.toString());
     }
+/*
+    public void findEmployeeByName()
+    {
+        String name;
+        System.out.println("Enter employee name");
+        name = scanner.next();
+        employee = employeeRepository.findByName(name);
+        System.out.println(employee.toString());
+    }*/
 
     public void listEmployees()
     {
-        System.out.println();
-        employees = employeeDao.listEmployees();
-
+        employees.clear();
+        for (Employee e: employeeRepository.findAll())
+        {
+            employees.add(e);
+        }
         for (int i = 0; i < employees.size(); i++)
         {
             System.out.println(employees.get(i).toString());
         }
     }
 
-    public void setEmployees()
-    {
-        employees = employeeDao.listEmployees();
-    }
-
     public void deleteEmployee()
     {
-        System.out.println("Enter employee id you want to delete");
-        int empID = scanner.nextInt();
-        employeeDao.deleteEmployee(empID);
+        long id;
+        System.out.println("Enter employee id");
+        id = scanner.nextLong();
+        employeeRepository.deleteById(id);
+        System.out.println("Employee with id " + id + " was successfully deleted");
     }
 
     public void updateEmployee()
     {
+        long id;
+        double fixedSalary;
+        double hourRate;
+        int hoursWorked;
+        float commRate;
         System.out.println("Enter employee id");
-        int id = scanner.nextInt();
-        System.out.println("Enter employee name");
-        String name = scanner.next();
-        System.out.println("Enter employee type");
-        String type = scanner.next();
-        employeeDao.updateEmployee(id, name, type);
-    }
+        id = scanner.nextLong();
+        employee = employeeRepository.findById(id).get();
+        System.out.println(employee.toString());
 
-    public void getSalariedEmployee()
-    {
-        System.out.println("Enter employee id (1)");
-        int id = scanner.nextInt();
-        if(employees.size() == 0)
+        if (employee.getEmplType().equals(EmployeeType.SALARIED))
         {
-            setEmployees();
+            System.out.println("Enter fixed salary");
+            fixedSalary = scanner.nextDouble();
+            employee.setFixedSalary(fixedSalary);
         }
-        for (int i = 0; i < employees.size(); i++)
+        else if(employee.getEmplType().equals(EmployeeType.HOURLY))
         {
-            if (employees.get(i).getId() == id)
-            {
-                employees.get(i).setType(salaryDao.getSalariedEmployeeByEmployeeId(id));
-                employees.get(i).setEmployeeType("Salaried");
-                System.out.println(employees.get(i).toString());
-            }
+            System.out.println("Enter hour rate");
+            hourRate = scanner.nextDouble();
+            System.out.println("Enter hours worked");
+            hoursWorked = scanner.nextInt();
+            employee.setHourRate(hourRate);
+            employee.setHoursWorked(hoursWorked);
         }
-    }
-
-    public void getHourlyEmployee()
-    {
-        System.out.println("Enter employee id (2)");
-        int id = scanner.nextInt();
-        if(employees.size() == 0)
+        else if (employee.getEmplType().equals(EmployeeType.COMMISION))
         {
-            setEmployees();
+            System.out.println("Enter commission rate");
+            commRate = scanner.nextFloat();
+            employee.setCommRate(commRate);
         }
-        for (int i = 0; i < employees.size(); i++)
+        else if (employee.getEmplType().equals(EmployeeType.SALARIED_COMMISION))
         {
-            if (employees.get(i).getId() == id)
-            {
-                employees.get(i).setType(salaryDao.getHourlyEmployeeByEmployeeId(id));
-                employees.get(i).setEmployeeType("Hourly");
-                System.out.println(employees.get(i).toString());
-            }
+            System.out.println("Enter fixed salary");
+            fixedSalary = scanner.nextDouble();
+            System.out.println("Enter commission rate");
+            commRate = scanner.nextFloat();
+            employee.setCommRate(commRate);
+            employee.setFixedSalary(fixedSalary);
         }
-    }
-
-    public void getCommissionEmployee()
-    {
-        System.out.println("Enter employee id (3)");
-        int id = scanner.nextInt();
-        if(employees.size() == 0)
-        {
-            setEmployees();
-        }
-        for (int i = 0; i < employees.size(); i++)
-        {
-            if (employees.get(i).getId() == id)
-            {
-                employees.get(i).setType(salaryDao.getCommissionEmployeeByEmployeeId(id));
-                employees.get(i).setEmployeeType("Commission");
-                System.out.println(employees.get(i).toString());
-            }
-        }
-    }
-
-    public void getSalComEmployee()
-    {
-        System.out.println("Enter employee id (4)");
-        int id = scanner.nextInt();
-        if(employees.size() == 0)
-        {
-            setEmployees();
-        }
-        for (int i = 0; i < employees.size(); i++)
-        {
-            if (employees.get(i).getId() == id)
-            {
-                employees.get(i).setType(salaryDao.getSalComEmployeeByEmployeeId(id));
-                employees.get(i).setEmployeeType("Salaried-Commission");
-                System.out.println(employees.get(i).toString());
-            }
-        }
+        
+        employeeRepository.save(employee);
+        System.out.println("Successfully updated: \n");
+        System.out.println(employee.toString());
     }
 
     public void calculateEmployeeSalary()
     {
-        double salary;
+        double salary = 0;
         System.out.println("Enter employee id");
-        int id = scanner.nextInt();
-        for (int i = 0; i < employees.size(); i++)
+        long id = scanner.nextLong();
+        employee = employeeRepository.findById(id).get();
+
+        if (employee.getEmplType().equals(EmployeeType.SALARIED))
         {
-            if (employees.get(i).getId() == id)
-            {
-                if (employees.get(i).getEmployeeType().equals("Salaried"))
-                {
-                    double monthlySalary = employees.get(i).getType().getMonthlySalary();
-                    salary = monthlySalary / 4;
-                    System.out.println("Monthly salary: " + monthlySalary);
-                    System.out.println("Employee " + employees.get(i).getName() + " earned " + salary + " $ this week");
-                }
-
-                else if (employees.get(i).getEmployeeType().equals("Hourly"))
-                {
-                    int hoursWorked = employees.get(i).getType().getHoursWorked();
-                    double hourlyRate = employees.get(i).getType().getHourlyRate();
-                    double overtimePay = employees.get(i).getType().getOvertimePay();
-
-                    salary = hoursWorked * hourlyRate * overtimePay;
-                    System.out.println("Hours worked: " + hoursWorked + " hourly rate: " + hourlyRate + " overtime pay: " + overtimePay);
-                    System.out.println("Employee " + employees.get(i).getName() + " earned " + salary + " $ this week");
-                }
-
-                else if (employees.get(i).getEmployeeType().equals("Commission"))
-                {
-                    double salesAmount = employees.get(i).getType().getSalesAmount();
-                    double salesPercentage = employees.get(i).getType().getSalesPercentage();
-                    salary = (salesAmount * salesPercentage / 100) / 4;
-                    System.out.println("Sales amount: " + salesAmount + " sales percentage: " + salesPercentage);
-                    System.out.println("Employee " + employees.get(i).getName() + " earned " + salary + " $ this week");
-                }
-
-                else if (employees.get(i).getEmployeeType().equals("Salaried-Commission"))
-                {
-                    double monthlySalary = employees.get(i).getType().getMonthlySalary();
-                    double salesAmount = employees.get(i).getType().getSalesAmount();
-                    double salesPercentage = employees.get(i).getType().getSalesPercentage();
-                    salary = (monthlySalary + salesAmount * salesPercentage / 100) / 4;
-                    System.out.println("Monthly salary: " + monthlySalary + " sales amount: " + salesAmount + " sales percentage: " + salesPercentage);
-                    System.out.println("Employee " + employees.get(i).getName() + " earned " + salary + " $ this week");
-                }
-            }
+            salary = employee.getFixedSalary();
         }
+        else if(employee.getEmplType().equals(EmployeeType.HOURLY))
+        {
+            salary = employee.getHourRate() * employee.getHoursWorked();
+        }
+        else if (employee.getEmplType().equals(EmployeeType.COMMISION))
+        {
+            salary = employee.getCommRate() / 100 * 5000;
+        }
+        else if (employee.getEmplType().equals(EmployeeType.SALARIED_COMMISION))
+        {
+            salary = employee.getFixedSalary() + employee.getCommRate() / 100 * 5000;
+        }
+
+        System.out.println(employee.toString());
+        System.out.println("Salary: " + salary);
     }
 
     public void run()
     {
-        employeeDao.setDataSource(dataSource);
-        salaryDao.setDataSource(dataSource);
-
         System.out.println("0 - Exit");
         System.out.println("1 - Add new employee");
         System.out.println("2 - Get employee by id");
@@ -223,15 +215,7 @@ public class EmployeeSalary {
         System.out.println("4 - Delete employee by id");
         System.out.println("5 - Update employee");
 
-        //System.out.println("\n6 - Add new salary record");
-        System.out.println("7 - Get Salaried employee by employee id");
-        System.out.println("8 - Get Hourly employee by employee id");
-        System.out.println("9 - Get Commission employee by employee id");
-        System.out.println("10 - Get Salaried-Commission employee by employee id");
-        //System.out.println("11 - Delete salary record by id");
-        //System.out.println("12 - Update salary record");
-
-        System.out.println("\n13 - Calculate employee salary (only after steps 7 - 10)");
+        System.out.println("\n6 - Calculate employee salary");
 
         userInput = 1;
 
@@ -281,31 +265,7 @@ public class EmployeeSalary {
                     break;
                 }
 
-                case 7:
-                {
-                    getSalariedEmployee();
-                    break;
-                }
-
-                case 8:
-                {
-                    getHourlyEmployee();
-                    break;
-                }
-
-                case 9:
-                {
-                    getCommissionEmployee();
-                    break;
-                }
-
-                case 10:
-                {
-                    getSalComEmployee();
-                    break;
-                }
-
-                case 13:
+                case 6:
                 {
                     calculateEmployeeSalary();
                     break;
